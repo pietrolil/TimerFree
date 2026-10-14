@@ -1,4 +1,4 @@
-export function createDeviceControls({ requestWakeLock, createAudioContext }) {
+export function createDeviceControls({ requestWakeLock, createAudioContext, onWakeRelease }) {
   let context = null;
   let audioReady = false;
   let sentinel = null;
@@ -60,7 +60,10 @@ export function createDeviceControls({ requestWakeLock, createAudioContext }) {
         }
         sentinel = granted;
         sentinel.addEventListener?.('release', () => {
-          if (sentinel === granted) sentinel = null;
+          if (sentinel === granted) {
+            sentinel = null;
+            onWakeRelease?.();
+          }
         });
         return true;
       } catch {

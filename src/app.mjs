@@ -13,6 +13,8 @@ const fieldNames = {
   exerciseSeconds: 'Tempo de cada exercício', transitionSeconds: 'Transição entre exercícios',
   restSeconds: 'Descanso entre sets', exerciseCount: 'Exercícios por set', setCount: 'Sets'
 };
+const AUDIO_NOTICE = 'Som indisponível; acompanhe o contador visual.';
+const WAKE_NOTICE = 'A tela pode apagar; mantenha o aparelho ativo.';
 
 function splitTime(total) {
   return [Math.floor(total / 60), total % 60];
@@ -92,7 +94,12 @@ try { storage = window.localStorage; } catch { storage = null; }
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 const device = createDeviceControls({
   requestWakeLock: navigator.wakeLock?.request ? () => navigator.wakeLock.request('screen') : null,
-  createAudioContext: AudioContextClass ? () => new AudioContextClass() : null
+  createAudioContext: AudioContextClass ? () => new AudioContextClass() : null,
+  onWakeRelease: () => {
+    if (timer?.snapshot(performance.now()).status === 'running' && !document.hidden) {
+      addDeviceNotice(WAKE_NOTICE);
+    }
+  }
 });
 fillForm(loadConfig(storage));
 showValidation(readForm(), false);
@@ -103,6 +110,16 @@ let refreshId = null;
 let lastPhaseIndex = -1;
 let deviceNotice = '';
 let pauseMessage = '';
+let pendingPhaseCue = false;
+
+function persistConfig(nextConfig) {
+  const saved = saveConfig(storage, nextConfig);
+  $('storageNotice').textContent = saved
+    ? 'As configurações ficam salvas neste navegador.'
+    : 'Não foi possível salvar a configuração neste navegador.';
+}
+
+if (!storage) $('storageNotice').textContent = 'Não foi possível salvar a configuração neste navegador.';
 
 function updateNotice() {
   $('notice').textContent = [pauseMessage, deviceNotice].filter(Boolean).join(' ');
@@ -113,20 +130,30 @@ function addDeviceNotice(message) {
   updateNotice();
 }
 
+function removeDeviceNotice(message) {
+  deviceNotice = deviceNotice.replace(message, '').trim();
+  updateNotice();
+}
+
 function activateDevice(activeTimer, playInitialCue) {
   // Call both APIs within the button handler; neither can block the workout.
+  const cuePhaseIndex = playInitialCue ? activeTimer?.phaseIndex : null;
   const audio = device.unlockAudio();
   const wake = device.keepAwake();
   void audio.then(ready => {
     if (timer !== activeTimer || timer?.snapshot(performance.now()).status !== 'running') return;
-    if (!ready) addDeviceNotice('Som indisponível; acompanhe o contador visual.');
-    else if (playInitialCue && timer.snapshot(performance.now()).phaseIndex === 0 && !device.playCue('phase')) {
-      addDeviceNotice('Som indisponível; acompanhe o contador visual.');
+    if (!ready) addDeviceNotice(AUDIO_NOTICE);
+    else {
+      removeDeviceNotice(AUDIO_NOTICE);
+      if (cuePhaseIndex !== null && timer.snapshot(performance.now()).phaseIndex === cuePhaseIndex && !device.playCue('phase')) {
+        addDeviceNotice(AUDIO_NOTICE);
+      }
     }
   });
   void wake.then(ready => {
-    if (timer === activeTimer && timer.snapshot(performance.now()).status === 'running' && !ready) {
-      addDeviceNotice('A tela pode apagar; mantenha o aparelho ativo.');
+    if (timer === activeTimer && timer.snapshot(performance.now()).status === 'running') {
+      if (ready) removeDeviceNotice(WAKE_NOTICE);
+      else addDeviceNotice(WAKE_NOTICE);
     }
   });
 }
@@ -146,7 +173,9 @@ function describePhase(phase) {
   if (phase.kind === 'exercise') {
     let upNext = '';
     if (phase.exercise < config.exerciseCount) upNext = `Depois: exercício ${phase.exercise + 1}`;
-    else if (phase.set < config.setCount) upNext = `Depois: descanso e set ${phase.set + 1}`;
+    else if (phase.set < config.setCount) upNext = config.restSeconds > 0
+      ? `Depois: descanso e set ${phase.set + 1}`
+      : `Depois: set ${phase.set + 1}`;
     else upNext = 'Último exercício do treino';
     return {
       title: `Exercício ${phase.exercise}`,
@@ -189,6 +218,7 @@ function render(state) {
 function completeWorkout() {
   clearRefresh();
   void device.releaseAwake();
+  pendingPhaseCue = false;
   timer = null;
   show(done);
 }
@@ -200,7 +230,7 @@ function refresh() {
     return;
   }
   const { state, cue } = timer.tick(performance.now());
-  if (cue && !device.playCue(cue)) addDeviceNotice('Som indisponível; acompanhe o contador visual.');
+  if (cue && !device.playCue(cue)) addDeviceNotice(AUDIO_NOTICE);
   if (cue === 'complete') {
     completeWorkout();
     return;
@@ -214,28 +244,32 @@ function startRefresh() {
 }
 
 function startWorkout(nextConfig) {
-  if (timer && ['running', 'paused'].includes(timer.snapshot(performance.now()).status)) return;
+  if (timer && ['running', 'paused'].includes(timer.snapshot(performance.now()).status)) return false;
   config = nextConfig;
   timer = new TimerEngine(buildPhases(config));
   lastPhaseIndex = -1;
   deviceNotice = '';
   pauseMessage = '';
+  pendingPhaseCue = false;
   const { state } = timer.start(performance.now());
   render(state);
   show(run);
   startRefresh();
+  return true;
 }
 
 function pauseWorkout(fromHidden = false) {
   if (!timer || timer.snapshot(performance.now()).status !== 'running') return;
+  const previousPhaseIndex = timer.phaseIndex;
   const state = timer.pause(performance.now());
   clearRefresh();
   void device.releaseAwake();
   if (state.status === 'complete') {
-    device.playCue('complete');
+    if (!fromHidden) device.playCue('complete');
     completeWorkout();
     return;
   }
+  if (state.phaseIndex !== previousPhaseIndex) pendingPhaseCue = true;
   pauseMessage = fromHidden
     ? 'Treino pausado ao sair da página. Toque em Continuar.'
     : 'Treino pausado. Toque em Continuar.';
@@ -247,16 +281,15 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setup.addEventListener('input', () => {
-  const config = showValidation(readForm(), false);
-  if (config) saveConfig(storage, config);
+  const config = showValidation(readForm(), true);
+  if (config) persistConfig(config);
 });
 setup.addEventListener('submit', event => {
   event.preventDefault();
   const config = showValidation(readForm(), true);
   if (config) {
-    saveConfig(storage, config);
-    startWorkout(config);
-    activateDevice(timer, true);
+    persistConfig(config);
+    if (startWorkout(config)) activateDevice(timer, true);
   }
 });
 
@@ -265,7 +298,8 @@ $('pauseButton').addEventListener('click', () => {
   if (timer.snapshot(performance.now()).status === 'running') {
     pauseWorkout();
   } else if (timer.snapshot(performance.now()).status === 'paused') {
-    activateDevice(timer, false);
+    activateDevice(timer, pendingPhaseCue);
+    pendingPhaseCue = false;
     pauseMessage = '';
     render(timer.resume(performance.now()));
     startRefresh();
@@ -276,6 +310,7 @@ $('endButton').addEventListener('click', () => {
   clearRefresh();
   timer?.stop();
   timer = null;
+  pendingPhaseCue = false;
   void device.releaseAwake();
   show(setup);
 });

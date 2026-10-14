@@ -22,6 +22,26 @@ test('granted wake lock is released once', async () => {
   assert.equal(releases, 1);
 });
 
+test('external wake-lock revocation is reported, manual release is not', async () => {
+  let released;
+  let notices = 0;
+  const sentinel = {
+    addEventListener: (_event, callback) => { released = callback; },
+    release: async () => { released(); }
+  };
+  const device = createDeviceControls({
+    requestWakeLock: async () => sentinel,
+    createAudioContext: null,
+    onWakeRelease: () => { notices++; }
+  });
+  await device.keepAwake();
+  released();
+  assert.equal(notices, 1);
+  await device.keepAwake();
+  await device.releaseAwake();
+  assert.equal(notices, 1);
+});
+
 test('late wake-lock grant after pause is released', async () => {
   let grant;
   let releases = 0;

@@ -48,6 +48,13 @@ test('hiding just before a boundary holds that phase', () => {
   assert.equal(timer.snapshot(100000).remainingMs, 10);
 });
 
+test('pause just after a boundary captures the new phase', () => {
+  const timer = new TimerEngine(phases);
+  timer.start(0);
+  assert.deepEqual(timer.pause(2010), { status: 'paused', phaseIndex: 1, remainingMs: 990 });
+  assert.deepEqual(timer.snapshot(100000), { status: 'paused', phaseIndex: 1, remainingMs: 990 });
+});
+
 test('stop resets and prevents stale ticks from advancing', () => {
   const timer = new TimerEngine(phases);
   timer.start(0);
