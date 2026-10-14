@@ -167,14 +167,99 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       errors
     };
   }
-  function plannedSeconds(config) {
-    return config.setCount * (config.exerciseCount * config.exerciseSeconds + (config.exerciseCount - 1) * config.transitionSeconds) + (config.setCount - 1) * config.restSeconds;
+  function plannedSeconds(config2) {
+    return config2.setCount * (config2.exerciseCount * config2.exerciseSeconds + (config2.exerciseCount - 1) * config2.transitionSeconds) + (config2.setCount - 1) * config2.restSeconds;
   }
   function formatSeconds(totalSeconds) {
     const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
     const seconds = String(totalSeconds % 60).padStart(2, "0");
     return `${minutes}:${seconds}`;
   }
+  function buildPhases(config2) {
+    const phases = [];
+    for (let set = 1; set <= config2.setCount; set += 1) {
+      for (let exercise = 1; exercise <= config2.exerciseCount; exercise += 1) {
+        phases.push({ kind: "exercise", seconds: config2.exerciseSeconds, set, exercise });
+        if (exercise < config2.exerciseCount && config2.transitionSeconds > 0) {
+          phases.push({
+            kind: "transition",
+            seconds: config2.transitionSeconds,
+            set,
+            nextExercise: exercise + 1
+          });
+        }
+      }
+      if (set < config2.setCount && config2.restSeconds > 0) {
+        phases.push({ kind: "rest", seconds: config2.restSeconds, set, nextSet: set + 1 });
+      }
+    }
+    return phases;
+  }
+
+  // src/timer-engine.mjs
+  var TimerEngine = class {
+    constructor(phases) {
+      if (!Array.isArray(phases) || phases.length === 0 || phases.some((phase) => !Number.isFinite(phase.seconds) || phase.seconds <= 0)) {
+        throw new TypeError("At least one positive-duration phase is required.");
+      }
+      this.phases = phases;
+      this.status = "idle";
+      this.phaseIndex = 0;
+      this.remainingMs = phases[0].seconds * 1e3;
+      this.deadlineMs = null;
+    }
+    snapshot(nowMs) {
+      return {
+        status: this.status,
+        phaseIndex: this.phaseIndex,
+        remainingMs: this.status === "running" ? Math.max(0, this.deadlineMs - nowMs) : this.remainingMs
+      };
+    }
+    start(nowMs) {
+      if (this.status !== "idle") return { state: this.snapshot(nowMs), cue: null };
+      this.status = "running";
+      this.deadlineMs = nowMs + this.remainingMs;
+      return { state: this.snapshot(nowMs), cue: "phase" };
+    }
+    tick(nowMs) {
+      let entered = false;
+      while (this.status === "running" && nowMs >= this.deadlineMs) {
+        this.phaseIndex++;
+        if (this.phaseIndex === this.phases.length) {
+          this.status = "complete";
+          this.remainingMs = 0;
+          this.deadlineMs = null;
+          return { state: this.snapshot(nowMs), cue: "complete" };
+        }
+        this.deadlineMs += this.phases[this.phaseIndex].seconds * 1e3;
+        entered = true;
+      }
+      return { state: this.snapshot(nowMs), cue: entered ? "phase" : null };
+    }
+    pause(nowMs) {
+      if (this.status !== "running") return this.snapshot(nowMs);
+      this.tick(nowMs);
+      if (this.status === "running") {
+        this.remainingMs = Math.max(0, this.deadlineMs - nowMs);
+        this.deadlineMs = null;
+        this.status = "paused";
+      }
+      return this.snapshot(nowMs);
+    }
+    resume(nowMs) {
+      if (this.status !== "paused") return this.snapshot(nowMs);
+      this.status = "running";
+      this.deadlineMs = nowMs + this.remainingMs;
+      return this.snapshot(nowMs);
+    }
+    stop() {
+      this.status = "idle";
+      this.phaseIndex = 0;
+      this.remainingMs = this.phases[0].seconds * 1e3;
+      this.deadlineMs = null;
+      return this.snapshot(0);
+    }
+  };
 
   // src/storage.mjs
   var KEY = "timerfree.config.v1";
@@ -187,9 +272,9 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       return DEFAULT_CONFIG;
     }
   }
-  function saveConfig(storage2, config) {
+  function saveConfig(storage2, config2) {
     try {
-      storage2.setItem(KEY, JSON.stringify(config));
+      storage2.setItem(KEY, JSON.stringify(config2));
       return true;
     } catch {
       return false;
@@ -213,14 +298,14 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
   function splitTime(total) {
     return [Math.floor(total / 60), total % 60];
   }
-  function fillForm(config) {
+  function fillForm(config2) {
     for (const [prefix, key] of timeFields) {
-      const [minutes, seconds] = splitTime(config[key]);
+      const [minutes, seconds] = splitTime(config2[key]);
       $(`${prefix}Minutes`).value = minutes;
       $(`${prefix}Seconds`).value = seconds;
     }
-    $("exerciseCount").value = config.exerciseCount;
-    $("setCount").value = config.setCount;
+    $("exerciseCount").value = config2.exerciseCount;
+    $("setCount").value = config2.setCount;
   }
   function parseNumber(input, min, max) {
     const raw = input.value.trim();
@@ -274,6 +359,8 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     return result.value;
   }
   var setup = $("setup");
+  var run = $("run");
+  var done = $("done");
   var storage;
   try {
     storage = window.localStorage;
@@ -282,14 +369,120 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
   }
   fillForm(loadConfig(storage));
   showValidation(readForm(), false);
+  var timer = null;
+  var config = null;
+  var refreshId = null;
+  var lastPhaseIndex = -1;
+  function clearRefresh() {
+    if (refreshId !== null) clearInterval(refreshId);
+    refreshId = null;
+  }
+  function show(view) {
+    setup.hidden = view !== setup;
+    run.hidden = view !== run;
+    done.hidden = view !== done;
+  }
+  function describePhase(phase) {
+    if (phase.kind === "exercise") {
+      let upNext = "";
+      if (phase.exercise < config.exerciseCount) upNext = `Depois: exerc\xEDcio ${phase.exercise + 1}`;
+      else if (phase.set < config.setCount) upNext = `Depois: descanso e set ${phase.set + 1}`;
+      else upNext = "\xDAltimo exerc\xEDcio do treino";
+      return {
+        title: `Exerc\xEDcio ${phase.exercise}`,
+        position: `Set ${phase.set}/${config.setCount} \xB7 Exerc\xEDcio ${phase.exercise}/${config.exerciseCount}`,
+        upNext
+      };
+    }
+    if (phase.kind === "transition") {
+      return {
+        title: "Transi\xE7\xE3o",
+        position: `Set ${phase.set}/${config.setCount}`,
+        upNext: `Prepare-se para o exerc\xEDcio ${phase.nextExercise}`
+      };
+    }
+    return {
+      title: "Descanso",
+      position: `Set ${phase.set} conclu\xEDdo`,
+      upNext: `O set ${phase.nextSet} come\xE7a automaticamente`
+    };
+  }
+  function render(state) {
+    if (!timer || state.status === "complete") return;
+    const phase = timer.phases[state.phaseIndex];
+    const details = describePhase(phase);
+    if (state.phaseIndex !== lastPhaseIndex) {
+      $("phaseTitle").textContent = details.title;
+      lastPhaseIndex = state.phaseIndex;
+    }
+    $("position").textContent = details.position;
+    $("upNext").textContent = details.upNext;
+    $("countdown").textContent = formatSeconds(Math.ceil(state.remainingMs / 1e3));
+    run.dataset.phase = phase.kind;
+    run.dataset.status = state.status;
+    $("pauseButton").textContent = state.status === "paused" ? "Continuar" : "Pausar";
+    $("notice").textContent = state.status === "paused" ? "Treino pausado. Toque em Continuar." : "";
+  }
+  function completeWorkout() {
+    clearRefresh();
+    timer = null;
+    show(done);
+  }
+  function refresh() {
+    if (!timer) return;
+    const { state, cue } = timer.tick(performance.now());
+    if (cue === "complete") {
+      completeWorkout();
+      return;
+    }
+    render(state);
+  }
+  function startRefresh() {
+    clearRefresh();
+    refreshId = setInterval(refresh, 100);
+  }
+  function startWorkout(nextConfig) {
+    if (timer && ["running", "paused"].includes(timer.snapshot(performance.now()).status)) return;
+    config = nextConfig;
+    timer = new TimerEngine(buildPhases(config));
+    lastPhaseIndex = -1;
+    const { state } = timer.start(performance.now());
+    render(state);
+    show(run);
+    startRefresh();
+  }
   setup.addEventListener("input", () => {
-    const config = showValidation(readForm(), false);
-    if (config) saveConfig(storage, config);
+    const config2 = showValidation(readForm(), false);
+    if (config2) saveConfig(storage, config2);
   });
   setup.addEventListener("submit", (event) => {
     event.preventDefault();
-    const config = showValidation(readForm(), true);
-    if (config) saveConfig(storage, config);
+    const config2 = showValidation(readForm(), true);
+    if (config2) {
+      saveConfig(storage, config2);
+      startWorkout(config2);
+    }
+  });
+  $("pauseButton").addEventListener("click", () => {
+    if (!timer) return;
+    if (timer.snapshot(performance.now()).status === "running") {
+      const state = timer.pause(performance.now());
+      clearRefresh();
+      if (state.status === "complete") completeWorkout();
+      else render(state);
+    } else if (timer.snapshot(performance.now()).status === "paused") {
+      render(timer.resume(performance.now()));
+      startRefresh();
+    }
+  });
+  $("endButton").addEventListener("click", () => {
+    clearRefresh();
+    timer?.stop();
+    timer = null;
+    show(setup);
+  });
+  $("restartButton").addEventListener("click", () => {
+    show(setup);
   });
 })();
 </script>

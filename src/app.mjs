@@ -1,4 +1,5 @@
-import { formatSeconds, plannedSeconds, validateConfig } from './timer-core.mjs';
+import { buildPhases, formatSeconds, plannedSeconds, validateConfig } from './timer-core.mjs';
+import { TimerEngine } from './timer-engine.mjs';
 import { loadConfig, saveConfig } from './storage.mjs';
 
 const $ = id => document.getElementById(id);
@@ -83,10 +84,104 @@ function showValidation(result, announce) {
 }
 
 const setup = $('setup');
+const run = $('run');
+const done = $('done');
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
 fillForm(loadConfig(storage));
 showValidation(readForm(), false);
+
+let timer = null;
+let config = null;
+let refreshId = null;
+let lastPhaseIndex = -1;
+
+function clearRefresh() {
+  if (refreshId !== null) clearInterval(refreshId);
+  refreshId = null;
+}
+
+function show(view) {
+  setup.hidden = view !== setup;
+  run.hidden = view !== run;
+  done.hidden = view !== done;
+}
+
+function describePhase(phase) {
+  if (phase.kind === 'exercise') {
+    let upNext = '';
+    if (phase.exercise < config.exerciseCount) upNext = `Depois: exercício ${phase.exercise + 1}`;
+    else if (phase.set < config.setCount) upNext = `Depois: descanso e set ${phase.set + 1}`;
+    else upNext = 'Último exercício do treino';
+    return {
+      title: `Exercício ${phase.exercise}`,
+      position: `Set ${phase.set}/${config.setCount} · Exercício ${phase.exercise}/${config.exerciseCount}`,
+      upNext
+    };
+  }
+  if (phase.kind === 'transition') {
+    return {
+      title: 'Transição',
+      position: `Set ${phase.set}/${config.setCount}`,
+      upNext: `Prepare-se para o exercício ${phase.nextExercise}`
+    };
+  }
+  return {
+    title: 'Descanso',
+    position: `Set ${phase.set} concluído`,
+    upNext: `O set ${phase.nextSet} começa automaticamente`
+  };
+}
+
+function render(state) {
+  if (!timer || state.status === 'complete') return;
+  const phase = timer.phases[state.phaseIndex];
+  const details = describePhase(phase);
+  if (state.phaseIndex !== lastPhaseIndex) {
+    $('phaseTitle').textContent = details.title;
+    lastPhaseIndex = state.phaseIndex;
+  }
+  $('position').textContent = details.position;
+  $('upNext').textContent = details.upNext;
+  $('countdown').textContent = formatSeconds(Math.ceil(state.remainingMs / 1000));
+  run.dataset.phase = phase.kind;
+  run.dataset.status = state.status;
+  $('pauseButton').textContent = state.status === 'paused' ? 'Continuar' : 'Pausar';
+  $('notice').textContent = state.status === 'paused' ? 'Treino pausado. Toque em Continuar.' : '';
+}
+
+function completeWorkout() {
+  clearRefresh();
+  timer = null;
+  show(done);
+}
+
+function refresh() {
+  if (!timer) return;
+  const { state, cue } = timer.tick(performance.now());
+  if (cue === 'complete') {
+    completeWorkout();
+    return;
+  }
+  render(state);
+}
+
+function startRefresh() {
+  clearRefresh();
+  refreshId = setInterval(refresh, 100);
+}
+
+function startWorkout(nextConfig) {
+  if (timer && ['running', 'paused'].includes(timer.snapshot(performance.now()).status)) return;
+  config = nextConfig;
+  timer = new TimerEngine(buildPhases(config));
+  lastPhaseIndex = -1;
+  const { state } = timer.start(performance.now());
+  render(state);
+  show(run);
+  startRefresh();
+}
+
 setup.addEventListener('input', () => {
   const config = showValidation(readForm(), false);
   if (config) saveConfig(storage, config);
@@ -94,5 +189,32 @@ setup.addEventListener('input', () => {
 setup.addEventListener('submit', event => {
   event.preventDefault();
   const config = showValidation(readForm(), true);
-  if (config) saveConfig(storage, config);
+  if (config) {
+    saveConfig(storage, config);
+    startWorkout(config);
+  }
+});
+
+$('pauseButton').addEventListener('click', () => {
+  if (!timer) return;
+  if (timer.snapshot(performance.now()).status === 'running') {
+    const state = timer.pause(performance.now());
+    clearRefresh();
+    if (state.status === 'complete') completeWorkout();
+    else render(state);
+  } else if (timer.snapshot(performance.now()).status === 'paused') {
+    render(timer.resume(performance.now()));
+    startRefresh();
+  }
+});
+
+$('endButton').addEventListener('click', () => {
+  clearRefresh();
+  timer?.stop();
+  timer = null;
+  show(setup);
+});
+
+$('restartButton').addEventListener('click', () => {
+  show(setup);
 });
