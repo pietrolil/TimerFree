@@ -3,13 +3,15 @@
 Timer de treino em circuito para usar no navegador do iPhone ou de outro aparelho.
 Configure a duração de cada exercício, a transição entre exercícios, o descanso
 entre sets e as quantidades de exercícios e sets. O treino avança sozinho até o
-fim; a transição e o descanso podem ser zero.
+fim; cada set começa com 3 segundos fixos de preparação, inclusive o primeiro.
+A transição e o descanso podem ser zero.
 
 ## Usar
 
 1. Abra a página por HTTPS no Safari.
-2. Ajuste os campos e toque em **Iniciar treino**. O tempo total planejado
-   aparece antes de iniciar.
+2. Ajuste os campos e toque em **Iniciar treino**. Aparecem 3 segundos de
+   preparação antes do primeiro exercício e antes dos exercícios de cada
+   set seguinte. O tempo total planejado aparece antes de iniciar.
 3. Mantenha a página visível durante o treino. Se sair dela, o timer pausa e
    espera você tocar em **Continuar**.
 4. Use **Pausar** ou **Encerrar** quando precisar.

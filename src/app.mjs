@@ -1,4 +1,4 @@
-import { buildPhases, formatSeconds, plannedSeconds, validateConfig } from './timer-core.mjs';
+import { buildPhases, formatSeconds, plannedSeconds, SET_PREP_SECONDS, validateConfig } from './timer-core.mjs';
 import { TimerEngine } from './timer-engine.mjs';
 import { loadConfig, saveConfig } from './storage.mjs';
 import { createDeviceControls } from './device.mjs';
@@ -170,12 +170,19 @@ function show(view) {
 }
 
 function describePhase(phase) {
+  if (phase.kind === 'prepare') {
+    return {
+      title: `Preparar set ${phase.set}`,
+      position: `Set ${phase.set}/${config.setCount}`,
+      upNext: 'A seguir: exercício 1'
+    };
+  }
   if (phase.kind === 'exercise') {
     let upNext = '';
     if (phase.exercise < config.exerciseCount) upNext = `Depois: exercício ${phase.exercise + 1}`;
     else if (phase.set < config.setCount) upNext = config.restSeconds > 0
-      ? `Depois: descanso e set ${phase.set + 1}`
-      : `Depois: set ${phase.set + 1}`;
+      ? `Depois: descanso e preparação do set ${phase.set + 1}`
+      : `Depois: preparação do set ${phase.set + 1}`;
     else upNext = 'Último exercício do treino';
     return {
       title: `Exercício ${phase.exercise}`,
@@ -193,7 +200,7 @@ function describePhase(phase) {
   return {
     title: 'Descanso',
     position: `Set ${phase.set} concluído`,
-    upNext: `O set ${phase.nextSet} começa automaticamente`
+    upNext: `Depois: ${SET_PREP_SECONDS} segundos para preparar o set ${phase.nextSet}`
   };
 }
 

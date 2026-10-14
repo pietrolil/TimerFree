@@ -6,6 +6,8 @@ export const DEFAULT_CONFIG = Object.freeze({
   setCount: 3,
 });
 
+export const SET_PREP_SECONDS = 3;
+
 const LIMITS = {
   exerciseSeconds: [1, 5999],
   transitionSeconds: [0, 5999],
@@ -41,7 +43,7 @@ export function validateConfig(raw) {
 
 export function plannedSeconds(config) {
   return config.setCount * (
-    config.exerciseCount * config.exerciseSeconds
+    SET_PREP_SECONDS + config.exerciseCount * config.exerciseSeconds
     + (config.exerciseCount - 1) * config.transitionSeconds
   ) + (config.setCount - 1) * config.restSeconds;
 }
@@ -56,6 +58,7 @@ export function buildPhases(config) {
   const phases = [];
 
   for (let set = 1; set <= config.setCount; set += 1) {
+    phases.push({ kind: 'prepare', seconds: SET_PREP_SECONDS, set });
     for (let exercise = 1; exercise <= config.exerciseCount; exercise += 1) {
       phases.push({ kind: 'exercise', seconds: config.exerciseSeconds, set, exercise });
 

@@ -38,6 +38,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #ef9a32;outline-offse
 .count-heading{border-top:2px solid var(--ink);padding-top:23px;margin-top:9px}
 .count-fields{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .count-fields label{display:flex;flex-direction:column;gap:9px;font-weight:700;font-size:.95rem}
+.prep-note{margin:17px 0 0;color:var(--muted);font-size:.9rem;line-height:1.45}
 .error{margin:20px 0 0;padding:12px 14px;background:#fff1e8;color:#873a19;border-left:4px solid #d36a2e;border-radius:4px;font-size:.9rem;line-height:1.45}
 input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
 .summary{margin:25px 0 16px;padding:18px 0;border-top:1px solid var(--line);display:flex;align-items:baseline;justify-content:space-between;gap:12px}
@@ -46,7 +47,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
 .primary-button:hover{background:#173fa8}.primary-button span{font-size:1.25rem}
 .setup-note{color:var(--muted);font-size:.8rem;line-height:1.4;text-align:center;margin:13px 0 0}
 .run,.done{min-height:100svh;display:flex;flex-direction:column;padding:clamp(24px,5vw,56px);color:#fff;background:var(--navy);transition:background-color .2s ease}
-.run[data-phase="transition"]{background:#1c6656}.run[data-phase="rest"]{background:#805420}.run[data-status="paused"]{background:#3e4962}
+.run[data-phase="prepare"]{background:#4d3b7f}.run[data-phase="transition"]{background:#1c6656}.run[data-phase="rest"]{background:#805420}.run[data-status="paused"]{background:#3e4962}
 .run-top,.run-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px}.run-top #position{font-weight:700;text-align:right}
 .run-center{width:100%;max-width:900px;margin:auto;align-self:center;text-align:center}
 .run-center h1{font-size:clamp(1.5rem,5vw,3rem);letter-spacing:-.04em;margin:0 0 8px}
@@ -66,7 +67,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       <header class="intro">
         <div class="brand"><span class="brand-mark" aria-hidden="true"></span> TimerFree</div>
         <h1>Seu treino,<br>no seu ritmo.</h1>
-        <p>Defina os tempos uma vez. O timer cuida dos exercícios, transições e descansos.</p>
+        <p>Defina os tempos uma vez. O timer cuida da preparação, dos exercícios e dos descansos.</p>
       </header>
 
       <div class="setup-body">
@@ -107,6 +108,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
           <label for="exerciseCount">Exercícios por set<input id="exerciseCount" type="number" min="1" max="99" step="1" inputmode="numeric" required></label>
           <label for="setCount">Sets<input id="setCount" type="number" min="1" max="99" step="1" inputmode="numeric" required></label>
         </div>
+        <p class="prep-note">Cada set começa com 3 segundos de preparação, inclusive o primeiro.</p>
 
         <p id="fieldErrors" class="error" role="alert" hidden></p>
         <div class="summary"><span>Tempo total planejado</span><output id="plannedTime">--:--</output></div>
@@ -143,6 +145,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     exerciseCount: 4,
     setCount: 3
   });
+  var SET_PREP_SECONDS = 3;
   var LIMITS = {
     exerciseSeconds: [1, 5999],
     transitionSeconds: [0, 5999],
@@ -168,7 +171,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     };
   }
   function plannedSeconds(config2) {
-    return config2.setCount * (config2.exerciseCount * config2.exerciseSeconds + (config2.exerciseCount - 1) * config2.transitionSeconds) + (config2.setCount - 1) * config2.restSeconds;
+    return config2.setCount * (SET_PREP_SECONDS + config2.exerciseCount * config2.exerciseSeconds + (config2.exerciseCount - 1) * config2.transitionSeconds) + (config2.setCount - 1) * config2.restSeconds;
   }
   function formatSeconds(totalSeconds) {
     const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
@@ -178,6 +181,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
   function buildPhases(config2) {
     const phases = [];
     for (let set = 1; set <= config2.setCount; set += 1) {
+      phases.push({ kind: "prepare", seconds: SET_PREP_SECONDS, set });
       for (let exercise = 1; exercise <= config2.exerciseCount; exercise += 1) {
         phases.push({ kind: "exercise", seconds: config2.exerciseSeconds, set, exercise });
         if (exercise < config2.exerciseCount && config2.transitionSeconds > 0) {
@@ -522,10 +526,17 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     done.hidden = view !== done;
   }
   function describePhase(phase) {
+    if (phase.kind === "prepare") {
+      return {
+        title: `Preparar set ${phase.set}`,
+        position: `Set ${phase.set}/${config.setCount}`,
+        upNext: "A seguir: exerc\xEDcio 1"
+      };
+    }
     if (phase.kind === "exercise") {
       let upNext = "";
       if (phase.exercise < config.exerciseCount) upNext = `Depois: exerc\xEDcio ${phase.exercise + 1}`;
-      else if (phase.set < config.setCount) upNext = config.restSeconds > 0 ? `Depois: descanso e set ${phase.set + 1}` : `Depois: set ${phase.set + 1}`;
+      else if (phase.set < config.setCount) upNext = config.restSeconds > 0 ? `Depois: descanso e prepara\xE7\xE3o do set ${phase.set + 1}` : `Depois: prepara\xE7\xE3o do set ${phase.set + 1}`;
       else upNext = "\xDAltimo exerc\xEDcio do treino";
       return {
         title: `Exerc\xEDcio ${phase.exercise}`,
@@ -543,7 +554,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     return {
       title: "Descanso",
       position: `Set ${phase.set} conclu\xEDdo`,
-      upNext: `O set ${phase.nextSet} come\xE7a automaticamente`
+      upNext: `Depois: ${SET_PREP_SECONDS} segundos para preparar o set ${phase.nextSet}`
     };
   }
   function render(state) {

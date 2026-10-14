@@ -12,9 +12,10 @@
 
 - Configuração inválida `00:00` para exercício mostrou erro e impediu o início.
 - Configuração válida reapareceu após recarregar a página.
-- Um exercício e um set terminaram diretamente, sem intervalo extra.
+- Um exercício e um set exibiram a preparação de 3 segundos antes do exercício e terminaram sem descanso extra.
 - Dois exercícios e dois sets com transição e descanso seguiram até a conclusão automática.
-- Com transição e descanso zero, apareceram somente quatro exercícios na ordem esperada, sem fase `00:00`.
+- Com transição e descanso zero, apareceram os quatro exercícios na ordem esperada, precedidos por 3 segundos de preparação em cada set e sem fase `00:00`.
+- Na revisão da preparação, um exercício em dois sets com 1 segundo de descanso seguiu `preparação 1 → exercício 1 → descanso → preparação 2 → exercício 1 → conclusão`; o total planejado mostrou `00:09` e a tela de 390 px não teve rolagem horizontal.
 - A pausa manual manteve `00:08` durante 10 segundos e continuou a partir dali.
 - Ao simular página oculta, o tempo permaneceu pausado após 16 segundos; ao voltar, exigiu toque em **Continuar**.
 - Dois envios seguidos do formulário na primeira fase produziram um único aviso inicial no adaptador de áudio simulado.

@@ -18,15 +18,17 @@ const config = {
 
 test('two exercises and two sets have only internal gaps', () => {
   assert.deepEqual(buildPhases(config), [
+    { kind: 'prepare', seconds: 3, set: 1 },
     { kind: 'exercise', seconds: 30, set: 1, exercise: 1 },
     { kind: 'transition', seconds: 10, set: 1, nextExercise: 2 },
     { kind: 'exercise', seconds: 30, set: 1, exercise: 2 },
     { kind: 'rest', seconds: 60, set: 1, nextSet: 2 },
+    { kind: 'prepare', seconds: 3, set: 2 },
     { kind: 'exercise', seconds: 30, set: 2, exercise: 1 },
     { kind: 'transition', seconds: 10, set: 2, nextExercise: 2 },
     { kind: 'exercise', seconds: 30, set: 2, exercise: 2 },
   ]);
-  assert.equal(plannedSeconds(config), 200);
+  assert.equal(plannedSeconds(config), 206);
 });
 
 test('zero gaps and one exercise never emit zero-length phases', () => {
@@ -37,19 +39,22 @@ test('zero gaps and one exercise never emit zero-length phases', () => {
     exerciseCount: 1,
   });
   assert.deepEqual(phases, [
+    { kind: 'prepare', seconds: 3, set: 1 },
     { kind: 'exercise', seconds: 30, set: 1, exercise: 1 },
+    { kind: 'prepare', seconds: 3, set: 2 },
     { kind: 'exercise', seconds: 30, set: 2, exercise: 1 },
   ]);
 });
 
 test('one exercise and one set ends without a gap', () => {
   assert.deepEqual(buildPhases({ ...config, exerciseCount: 1, setCount: 1 }), [
+    { kind: 'prepare', seconds: 3, set: 1 },
     { kind: 'exercise', seconds: 30, set: 1, exercise: 1 },
   ]);
 });
 
 test('planned duration includes no final rest', () => {
-  assert.equal(plannedSeconds({ ...config, exerciseCount: 1, setCount: 1 }), 30);
+  assert.equal(plannedSeconds({ ...config, exerciseCount: 1, setCount: 1 }), 33);
 });
 
 test('time display uses minutes and seconds', () => {

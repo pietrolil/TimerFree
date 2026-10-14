@@ -1,7 +1,7 @@
 # Timer de treino por exercícios e sets — especificação da primeira versão
 
 **Data:** 14/10/2026  
-**Status:** especificação aprovada pelo usuário em 14/10/2026
+**Status:** especificação aprovada e atualizada com preparação fixa antes de cada set em 14/10/2026
 
 ## Objetivo
 
@@ -14,6 +14,7 @@ O custo e a facilidade de publicação importam: a primeira versão será um sit
 Incluído:
 
 - Configuração de cinco valores: tempo de exercício, tempo de transição, descanso entre sets, quantidade de exercícios e quantidade de sets.
+- Preparação fixa de 3 segundos antes de todos os sets, inclusive o primeiro, sem campo para edição.
 - Mesma duração de exercício para todos os exercícios; identificação apenas pelo número, sem cadastro de nomes.
 - Execução automática de todas as fases e sets.
 - Aviso sonoro no início de cada fase e aviso distinto no fim do treino.
@@ -27,22 +28,23 @@ Fora desta versão: APK Android, publicação em lojas, contas, sincronização 
 
 ## Regras da sequência
 
-1. O toque em **Iniciar** entra imediatamente no exercício 1 do set 1; não há contagem preparatória.
+1. O toque em **Iniciar** entra na preparação de 3 segundos do set 1. Ao terminar, o exercício 1 começa automaticamente.
 2. Depois de cada exercício que não seja o último do set, ocorre a transição configurada. A tela de transição informa qual exercício vem a seguir.
-3. Depois do último exercício de um set que não seja o último, ocorre o descanso configurado. Ao terminar, o exercício 1 do próximo set começa automaticamente.
+3. Depois do último exercício de um set que não seja o último, ocorre o descanso configurado. Ao terminar, começa a preparação fixa de 3 segundos do próximo set; depois dela, o exercício 1 começa automaticamente.
 4. Depois do último exercício do último set, o treino termina imediatamente, sem transição nem descanso adicional.
-5. Se transição ou descanso forem zero, a fase correspondente é omitida. O exercício ou set seguinte começa sem espera.
-6. Um aviso sonoro marca a entrada em cada fase, inclusive no primeiro exercício. O fim usa um padrão diferente. A interface nunca depende apenas do som para informar a fase.
+5. Se transição ou descanso forem zero, a fase correspondente é omitida. A preparação de 3 segundos de cada set permanece.
+6. Um aviso sonoro marca a entrada em cada fase, inclusive preparação e primeiro exercício. O fim usa um padrão diferente. A interface nunca depende apenas do som para informar a fase.
 
-Exemplo com dois exercícios e dois sets: **Exercício 1 → Transição → Exercício 2 → Descanso → Exercício 1 → Transição → Exercício 2 → Fim**.
+Exemplo com dois exercícios e dois sets: **Preparação 1 → Exercício 1 → Transição → Exercício 2 → Descanso → Preparação 2 → Exercício 1 → Transição → Exercício 2 → Fim**.
 
-A duração planejada é `sets × (exercícios × exercício + (exercícios − 1) × transição) + (sets − 1) × descanso`. Isso é uma previsão; o tempo real pode aumentar se o usuário pausar.
+A duração planejada é `sets × (3 segundos de preparação + exercícios × exercício + (exercícios − 1) × transição) + (sets − 1) × descanso`. Isso é uma previsão; o tempo real pode aumentar se o usuário pausar.
 
 ## Entradas e estados da interface
 
 - Os três tempos são editados em minutos e segundos. Exercício aceita de 00:01 a 99:59; transição e descanso aceitam de 00:00 a 99:59.
 - Quantidades de exercícios e sets são números inteiros de 1 a 99. A interface impede início com valores inválidos e explica o campo a corrigir.
 - A configuração mostra a duração planejada antes de iniciar.
+- A tela de preparação informa o set que vai começar e mostra a contagem de 3 segundos.
 - Durante a execução, a tela mostra `Exercício X de N` e `Set Y de M`; para transição, mostra também o próximo exercício. Descanso identifica o próximo set. Cor ajuda a distinguir fases, mas texto permanece suficiente para compreendê-las.
 - Os controles de pausar/continuar e encerrar são grandes o suficiente para uso por toque. Encerrar volta à configuração preservando os valores. A tela de conclusão mostra que o treino terminou e permite iniciar outro treino.
 - A última configuração válida é salva no navegador ao ser alterada. Se o armazenamento não estiver disponível ou contiver dados inválidos, o app usa valores iniciais válidos e continua funcional; isso não bloqueia o treino.
@@ -62,9 +64,10 @@ O `index.html` será publicado por um serviço de hospedagem estática com HTTPS
 
 ## Verificação e critérios de aceite
 
-- Exercício único/set único termina diretamente, sem fases extras.
+- Um exercício e um set exibem preparação de 3 segundos, o exercício e a conclusão, sem descanso extra.
 - Uma sequência com vários exercícios e sets segue exatamente as regras acima; transição não aparece depois do último exercício, e descanso não aparece depois do último set.
 - Transição ou descanso em zero não criam uma fase visível de duração zero nem travam o avanço.
+- Todos os sets são precedidos pela preparação fixa, mesmo quando descanso e transição são zero.
 - Pausar e continuar preservam o tempo restante; sair da página pausa e requer retomada manual.
 - O timer não acumula atraso perceptível após longos intervalos com a tela visível.
 - A última configuração reaparece depois de recarregar a página; um treino em andamento não reaparece como se ainda estivesse rodando.
