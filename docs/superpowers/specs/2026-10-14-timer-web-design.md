@@ -1,7 +1,7 @@
 # Timer de treino por exercícios e sets — especificação da primeira versão
 
 **Data:** 14/10/2026  
-**Status:** desenho aprovado em conversa; aguardando revisão deste documento
+**Status:** especificação aprovada pelo usuário em 14/10/2026
 
 ## Objetivo
 
