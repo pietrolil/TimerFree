@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#162b66">
+  <link rel="icon" href="data:,">
+  <meta name="description" content="Timer simples para treinos em circuito, com exercícios, transições e descanso entre sets.">
+  <title>TimerFree — timer de treino</title>
+  <!-- INLINE_CSS -->
+</head>
+<body>
+  <main class="shell">
+    <form id="setup" class="setup" novalidate>
+      <header class="intro">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"></span> TimerFree</div>
+        <h1>Seu treino,<br>no seu ritmo.</h1>
+        <p>Defina os tempos uma vez. O timer cuida da preparação, dos exercícios e dos descansos.</p>
+      </header>
+
+      <div class="setup-body">
+        <div class="section-heading"><h2>Monte o circuito</h2><span>01 / 02</span></div>
+
+        <fieldset class="duration-row">
+          <legend>Tempo de cada exercício</legend>
+          <p class="field-help">Igual para todos os exercícios.</p>
+          <div class="duration-fields">
+            <label for="exerciseMinutes">Minutos<input id="exerciseMinutes" type="number" min="0" max="99" step="1" inputmode="numeric" required></label>
+            <span class="time-separator" aria-hidden="true">:</span>
+            <label for="exerciseSeconds">Segundos<input id="exerciseSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" required></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="duration-row">
+          <legend>Transição entre exercícios</legend>
+          <p class="field-help">Tempo para preparar o próximo. Use zero para pular.</p>
+          <div class="duration-fields">
+            <label for="transitionMinutes">Minutos<input id="transitionMinutes" type="number" min="0" max="99" step="1" inputmode="numeric" required></label>
+            <span class="time-separator" aria-hidden="true">:</span>
+            <label for="transitionSeconds">Segundos<input id="transitionSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" required></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="duration-row">
+          <legend>Descanso entre sets</legend>
+          <p class="field-help">Ao terminar, o próximo set começa automaticamente.</p>
+          <div class="duration-fields">
+            <label for="restMinutes">Minutos<input id="restMinutes" type="number" min="0" max="99" step="1" inputmode="numeric" required></label>
+            <span class="time-separator" aria-hidden="true">:</span>
+            <label for="restSeconds">Segundos<input id="restSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" required></label>
+          </div>
+        </fieldset>
+
+        <div class="section-heading count-heading"><h2>Quantos fazer?</h2><span>02 / 02</span></div>
+        <div class="count-fields">
+          <label for="exerciseCount">Exercícios por set<input id="exerciseCount" type="number" min="1" max="99" step="1" inputmode="numeric" required></label>
+          <label for="setCount">Sets<input id="setCount" type="number" min="1" max="99" step="1" inputmode="numeric" required></label>
+        </div>
+        <p class="prep-note">Cada set começa com 3 segundos de preparação, inclusive o primeiro.</p>
+
+        <p id="fieldErrors" class="error" role="alert" hidden></p>
+        <div class="summary"><span>Tempo total planejado</span><output id="plannedTime">--:--</output></div>
+        <button id="startButton" class="primary-button" type="submit">Iniciar treino <span aria-hidden="true">↗</span></button>
+        <p id="storageNotice" class="setup-note" role="status">As configurações ficam salvas neste navegador.</p>
+      </div>
+    </form>
+
+    <section id="run" class="run" hidden>
+      <div class="run-top"><span class="brand"><span class="brand-mark" aria-hidden="true"></span> TimerFree</span><span id="position"></span></div>
+      <div class="run-center">
+        <h1 id="phaseTitle" aria-live="polite"></h1>
+        <p id="countdown" role="timer"></p>
+        <p id="upNext"></p>
+      </div>
+      <div class="run-bottom">
+        <p id="notice" role="status"></p>
+        <div class="run-actions"><button id="pauseButton" type="button">Pausar</button><button id="endButton" type="button">Encerrar</button></div>
+      </div>
+    </section>
+
+    <section id="done" class="done" hidden>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span> TimerFree</div>
+      <div class="done-center"><span class="done-symbol" aria-hidden="true">✓</span><h1>Treino concluído.</h1><p>Todos os sets finalizados.</p></div>
+      <button id="restartButton" class="primary-button" type="button">Novo treino <span aria-hidden="true">↗</span></button>
+    </section>
+  </main>
+  <!-- INLINE_JS -->
+</body>
+</html>
