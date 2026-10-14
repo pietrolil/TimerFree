@@ -1,0 +1,14 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e54]:
+    - generic [ref=f1e55]:
+      - generic [ref=f1e56]: TimerFree
+      - generic [ref=f1e58]: Set 1/1 · Exercício 1/1
+    - generic [ref=f1e59]:
+      - heading "Exercício 1" [level=1] [ref=f1e60]
+      - timer [ref=f1e61]: 00:07
+      - paragraph [ref=f1e62]: Último exercício do treino
+    - generic [ref=f1e63]:
+      - status [ref=f1e64]
+      - generic [ref=f1e65]:
+        - button "Pausar" [active] [ref=f1e78] [cursor=pointer]
+        - button "Encerrar" [ref=f1e67] [cursor=pointer]

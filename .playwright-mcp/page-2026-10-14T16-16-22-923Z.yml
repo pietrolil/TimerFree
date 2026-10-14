@@ -1,0 +1,57 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - generic [ref=f1e5]: TimerFree
+      - heading "Seu treino, no seu ritmo." [level=1] [ref=f1e7]: Seu treino,no seu ritmo.
+      - paragraph [ref=f1e8]: Defina os tempos uma vez. O timer cuida dos exercícios, transições e descansos.
+    - generic [ref=f1e9]:
+      - generic [ref=f1e10]:
+        - heading "Monte o circuito" [level=2] [ref=f1e11]
+        - generic [ref=f1e12]: 01 / 02
+      - group "Tempo de cada exercício" [ref=f1e13]:
+        - paragraph [ref=f1e15]: Igual para todos os exercícios.
+        - generic [ref=f1e16]:
+          - generic [ref=f1e17]:
+            - text: Minutos
+            - spinbutton "Minutos" [ref=f1e18]: "0"
+          - generic [aria-hidden] [ref=f1e19]: ":"
+          - generic [ref=f1e20]:
+            - text: Segundos
+            - spinbutton "Segundos" [ref=f1e21]: "2"
+      - group "Transição entre exercícios" [ref=f1e22]:
+        - paragraph [ref=f1e24]: Tempo para preparar o próximo. Use zero para pular.
+        - generic [ref=f1e25]:
+          - generic [ref=f1e26]:
+            - text: Minutos
+            - spinbutton "Minutos" [ref=f1e27]: "0"
+          - generic [aria-hidden] [ref=f1e28]: ":"
+          - generic [ref=f1e29]:
+            - text: Segundos
+            - spinbutton "Segundos" [ref=f1e30]: "1"
+      - group "Descanso entre sets" [ref=f1e31]:
+        - paragraph [ref=f1e33]: Ao terminar, o próximo set começa automaticamente.
+        - generic [ref=f1e34]:
+          - generic [ref=f1e35]:
+            - text: Minutos
+            - spinbutton "Minutos" [ref=f1e36]: "0"
+          - generic [aria-hidden] [ref=f1e37]: ":"
+          - generic [ref=f1e38]:
+            - text: Segundos
+            - spinbutton "Segundos" [ref=f1e39]: "1"
+      - generic [ref=f1e40]:
+        - heading "Quantos fazer?" [level=2] [ref=f1e41]
+        - generic [ref=f1e42]: 02 / 02
+      - generic [ref=f1e43]:
+        - generic [ref=f1e44]:
+          - text: Exercícios por set
+          - spinbutton "Exercícios por set" [ref=f1e45]: "2"
+        - generic [ref=f1e46]:
+          - text: Sets
+          - spinbutton "Sets" [ref=f1e47]: "2"
+      - generic [ref=f1e48]:
+        - generic [ref=f1e49]: Tempo total planejado
+        - status [ref=f1e50]: 00:11
+      - button "Iniciar treino" [ref=f1e51] [cursor=pointer]:
+        - text: Iniciar treino
+        - generic [aria-hidden] [ref=f1e52]: ↗
+      - paragraph [ref=f1e53]: As configurações ficam salvas neste navegador.

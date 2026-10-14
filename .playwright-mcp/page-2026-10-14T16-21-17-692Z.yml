@@ -1,0 +1,10 @@
+- main [ref=f2e2]:
+  - generic [ref=f2e68]:
+    - generic [ref=f2e69]: TimerFree
+    - generic [ref=f2e71]:
+      - generic [aria-hidden] [ref=f2e72]: ✓
+      - heading "Treino concluído." [level=1] [ref=f2e73]
+      - paragraph [ref=f2e74]: Todos os sets finalizados.
+    - button "Novo treino" [ref=f2e75] [cursor=pointer]:
+      - text: Novo treino
+      - generic [aria-hidden] [ref=f2e76]: ↗
