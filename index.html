@@ -281,6 +281,90 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     }
   }
 
+  // src/device.mjs
+  function createDeviceControls({ requestWakeLock, createAudioContext }) {
+    let context = null;
+    let audioReady = false;
+    let sentinel = null;
+    let wakePending = null;
+    let wakeGeneration = 0;
+    async function unlockAudio() {
+      if (!createAudioContext) return false;
+      try {
+        context ??= createAudioContext();
+        const resumed = context.resume();
+        await resumed;
+        audioReady = true;
+        return true;
+      } catch {
+        audioReady = false;
+        return false;
+      }
+    }
+    function playCue(kind) {
+      if (!audioReady || !context || !["phase", "complete"].includes(kind)) return false;
+      try {
+        const now = context.currentTime;
+        const notes = kind === "complete" ? [[660, 0], [880, 0.16], [1046, 0.32]] : [[760, 0]];
+        for (const [frequency, offset] of notes) {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          const start = now + offset;
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency, start);
+          gain.gain.setValueAtTime(0.16, start);
+          gain.gain.exponentialRampToValueAtTime(1e-3, start + 0.13);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(start);
+          oscillator.stop(start + 0.14);
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    async function keepAwake() {
+      if (sentinel) return true;
+      if (wakePending) return wakePending;
+      if (!requestWakeLock) return false;
+      const generation = wakeGeneration;
+      const pending = (async () => {
+        try {
+          const granted = await requestWakeLock();
+          if (generation !== wakeGeneration) {
+            await granted.release();
+            return false;
+          }
+          sentinel = granted;
+          sentinel.addEventListener?.("release", () => {
+            if (sentinel === granted) sentinel = null;
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      wakePending = pending;
+      try {
+        return await pending;
+      } finally {
+        if (wakePending === pending) wakePending = null;
+      }
+    }
+    async function releaseAwake() {
+      wakeGeneration++;
+      wakePending = null;
+      const current = sentinel;
+      sentinel = null;
+      try {
+        await current?.release();
+      } catch {
+      }
+    }
+    return { unlockAudio, playCue, keepAwake, releaseAwake };
+  }
+
   // src/app.mjs
   var $ = (id) => document.getElementById(id);
   var timeFields = [
@@ -367,12 +451,42 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
   } catch {
     storage = null;
   }
+  var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  var device = createDeviceControls({
+    requestWakeLock: navigator.wakeLock?.request ? () => navigator.wakeLock.request("screen") : null,
+    createAudioContext: AudioContextClass ? () => new AudioContextClass() : null
+  });
   fillForm(loadConfig(storage));
   showValidation(readForm(), false);
   var timer = null;
   var config = null;
   var refreshId = null;
   var lastPhaseIndex = -1;
+  var deviceNotice = "";
+  var pauseMessage = "";
+  function updateNotice() {
+    $("notice").textContent = [pauseMessage, deviceNotice].filter(Boolean).join(" ");
+  }
+  function addDeviceNotice(message) {
+    if (!deviceNotice.includes(message)) deviceNotice = [deviceNotice, message].filter(Boolean).join(" ");
+    updateNotice();
+  }
+  function activateDevice(activeTimer, playInitialCue) {
+    const audio = device.unlockAudio();
+    const wake = device.keepAwake();
+    void audio.then((ready) => {
+      if (timer !== activeTimer || timer?.snapshot(performance.now()).status !== "running") return;
+      if (!ready) addDeviceNotice("Som indispon\xEDvel; acompanhe o contador visual.");
+      else if (playInitialCue && timer.snapshot(performance.now()).phaseIndex === 0 && !device.playCue("phase")) {
+        addDeviceNotice("Som indispon\xEDvel; acompanhe o contador visual.");
+      }
+    });
+    void wake.then((ready) => {
+      if (timer === activeTimer && timer.snapshot(performance.now()).status === "running" && !ready) {
+        addDeviceNotice("A tela pode apagar; mantenha o aparelho ativo.");
+      }
+    });
+  }
   function clearRefresh() {
     if (refreshId !== null) clearInterval(refreshId);
     refreshId = null;
@@ -421,16 +535,23 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     run.dataset.phase = phase.kind;
     run.dataset.status = state.status;
     $("pauseButton").textContent = state.status === "paused" ? "Continuar" : "Pausar";
-    $("notice").textContent = state.status === "paused" ? "Treino pausado. Toque em Continuar." : "";
+    pauseMessage = state.status === "paused" ? pauseMessage || "Treino pausado. Toque em Continuar." : "";
+    updateNotice();
   }
   function completeWorkout() {
     clearRefresh();
+    void device.releaseAwake();
     timer = null;
     show(done);
   }
   function refresh() {
     if (!timer) return;
+    if (document.hidden) {
+      pauseWorkout(true);
+      return;
+    }
     const { state, cue } = timer.tick(performance.now());
+    if (cue && !device.playCue(cue)) addDeviceNotice("Som indispon\xEDvel; acompanhe o contador visual.");
     if (cue === "complete") {
       completeWorkout();
       return;
@@ -446,11 +567,29 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     config = nextConfig;
     timer = new TimerEngine(buildPhases(config));
     lastPhaseIndex = -1;
+    deviceNotice = "";
+    pauseMessage = "";
     const { state } = timer.start(performance.now());
     render(state);
     show(run);
     startRefresh();
   }
+  function pauseWorkout(fromHidden = false) {
+    if (!timer || timer.snapshot(performance.now()).status !== "running") return;
+    const state = timer.pause(performance.now());
+    clearRefresh();
+    void device.releaseAwake();
+    if (state.status === "complete") {
+      device.playCue("complete");
+      completeWorkout();
+      return;
+    }
+    pauseMessage = fromHidden ? "Treino pausado ao sair da p\xE1gina. Toque em Continuar." : "Treino pausado. Toque em Continuar.";
+    render(state);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseWorkout(true);
+  });
   setup.addEventListener("input", () => {
     const config2 = showValidation(readForm(), false);
     if (config2) saveConfig(storage, config2);
@@ -461,16 +600,16 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     if (config2) {
       saveConfig(storage, config2);
       startWorkout(config2);
+      activateDevice(timer, true);
     }
   });
   $("pauseButton").addEventListener("click", () => {
     if (!timer) return;
     if (timer.snapshot(performance.now()).status === "running") {
-      const state = timer.pause(performance.now());
-      clearRefresh();
-      if (state.status === "complete") completeWorkout();
-      else render(state);
+      pauseWorkout();
     } else if (timer.snapshot(performance.now()).status === "paused") {
+      activateDevice(timer, false);
+      pauseMessage = "";
       render(timer.resume(performance.now()));
       startRefresh();
     }
@@ -479,6 +618,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     clearRefresh();
     timer?.stop();
     timer = null;
+    void device.releaseAwake();
     show(setup);
   });
   $("restartButton").addEventListener("click", () => {
