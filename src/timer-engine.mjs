@@ -9,6 +9,7 @@ export class TimerEngine {
     this.phaseIndex = 0;
     this.remainingMs = phases[0].seconds * 1000;
     this.deadlineMs = null;
+    this.lastCueSecond = null;
   }
 
   snapshot(nowMs) {
@@ -25,6 +26,7 @@ export class TimerEngine {
     if (this.status !== 'idle') return { state: this.snapshot(nowMs), cue: null };
     this.status = 'running';
     this.deadlineMs = nowMs + this.remainingMs;
+    this.lastCueSecond = Math.ceil(this.remainingMs / 1000);
     return { state: this.snapshot(nowMs), cue: 'phase' };
   }
 
@@ -41,12 +43,25 @@ export class TimerEngine {
       this.deadlineMs += this.phases[this.phaseIndex].seconds * 1000;
       entered = true;
     }
-    return { state: this.snapshot(nowMs), cue: entered ? 'phase' : null };
+    const state = this.snapshot(nowMs);
+    let cue = null;
+    if (state.status === 'running') {
+      const second = Math.ceil(state.remainingMs / 1000);
+      // An entry cue also covers the first second of short phases.
+      if (entered) cue = 'phase';
+      else if (second <= 5 && second > 0 && second !== this.lastCueSecond) cue = 'countdown';
+      this.lastCueSecond = second;
+    }
+    return { state, cue };
   }
 
   pause(nowMs) {
     if (this.status !== 'running') return this.snapshot(nowMs);
+    const previousPhaseIndex = this.phaseIndex;
+    const previousCueSecond = this.lastCueSecond;
     this.tick(nowMs);
+    // Pausing does not play cues; keep an unheard second eligible on resume.
+    if (this.phaseIndex === previousPhaseIndex) this.lastCueSecond = previousCueSecond;
     if (this.status === 'running') {
       this.remainingMs = Math.max(0, this.deadlineMs - nowMs);
       this.deadlineMs = null;
@@ -67,6 +82,7 @@ export class TimerEngine {
     this.phaseIndex = 0;
     this.remainingMs = this.phases[0].seconds * 1000;
     this.deadlineMs = null;
+    this.lastCueSecond = null;
     return this.snapshot(0);
   }
 }

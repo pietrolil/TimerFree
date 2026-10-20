@@ -99,3 +99,38 @@ test('unlocked audio plays one short pattern for a phase', async () => {
   assert.equal(device.playCue('phase'), true);
   assert.equal(starts, 1);
 });
+
+test('countdown emits a short beep and completion emits a distinct longer alarm', async () => {
+  const notes = [];
+  const context = {
+    currentTime: 10,
+    destination: {},
+    resume: async () => {},
+    createOscillator: () => {
+      const note = {};
+      notes.push(note);
+      return {
+        frequency: { setValueAtTime: frequency => { note.frequency = frequency; } },
+        connect: () => {},
+        start: at => { note.start = at; },
+        stop: at => { note.stop = at; }
+      };
+    },
+    createGain: () => ({ gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {} })
+  };
+  const device = createDeviceControls({ requestWakeLock: null, createAudioContext: () => context });
+  assert.equal(device.playCue('countdown'), false);
+  await device.unlockAudio();
+  assert.equal(device.playCue('countdown'), true);
+  assert.equal(notes.length, 1);
+  assert.ok(notes[0].stop - notes[0].start < 0.2);
+  const countdownFrequency = notes[0].frequency;
+  notes.length = 0;
+  assert.equal(device.playCue('phase'), true);
+  assert.notEqual(notes[0].frequency, countdownFrequency);
+  notes.length = 0;
+  assert.equal(device.playCue('complete'), true);
+  assert.ok(notes.length >= 3);
+  assert.ok(notes.at(-1).stop - notes[0].start >= 1);
+  assert.equal(device.playCue('unknown'), false);
+});

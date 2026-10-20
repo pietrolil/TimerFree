@@ -16,16 +16,12 @@ button{cursor:pointer}
 button:focus-visible,input:focus-visible{outline:3px solid #ef9a32;outline-offset:3px}
 [hidden]{display:none!important}
 .shell{min-height:100vh}
-.setup{max-width:1120px;min-height:100vh;margin:auto;display:grid;grid-template-columns:minmax(320px,.85fr) minmax(400px,1fr);background:#fff}
-.intro{position:relative;padding:clamp(30px,5vw,64px);background:var(--navy);color:#fff;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
-.intro::after{content:"";position:absolute;left:-10%;bottom:8%;width:120%;aspect-ratio:1;border:44px solid #244489;border-radius:50%;opacity:.72;transform:translateY(52%);pointer-events:none}
+.setup{max-width:640px;min-height:100vh;margin:auto;background:#fff}
 .brand{display:inline-flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.03em;font-size:1.12rem;position:relative;z-index:1}
 .brand-mark{width:20px;height:20px;border:5px solid currentColor;border-radius:50%;border-right-color:transparent;display:inline-block;transform:rotate(-40deg)}
-.intro h1{position:relative;z-index:1;margin:auto 0 20px;font-size:clamp(3.2rem,6vw,5.6rem);line-height:1.02;letter-spacing:-.065em;max-width:9ch}
-.intro p{position:relative;z-index:1;margin:0 0 auto;max-width:31ch;color:#d7e3ff;line-height:1.55;font-size:1.03rem}
-.setup-body{padding:clamp(28px,4.5vw,64px);align-self:center;width:100%}
+.setup-body{padding:clamp(28px,4.5vw,48px);width:100%}
 .section-heading{display:flex;justify-content:space-between;align-items:baseline;gap:15px;margin:0 0 10px}
-.section-heading h2{font-size:1.3rem;letter-spacing:-.035em;margin:0}
+.section-heading h1,.section-heading h2{font-size:1.3rem;letter-spacing:-.035em;margin:0}
 .section-heading span{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
 .duration-row{border:0;border-top:1px solid var(--line);padding:18px 0 14px;margin:0;min-width:0}
 .duration-row legend{float:left;width:100%;padding:0;font-weight:750;font-size:1rem}
@@ -56,7 +52,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
 .run-bottom{flex-direction:column;align-items:stretch}.run-bottom #notice{min-height:1.4em;margin:0 0 15px;text-align:center;font-size:.85rem}.run-actions{display:grid;grid-template-columns:2fr 1fr;gap:12px}
 .run-actions button{min-height:60px;border-radius:14px;border:1px solid #ffffffa3;background:#fff;color:var(--navy);font-weight:800;font-size:1.05rem}.run-actions #endButton{background:transparent;color:#fff;border-color:#ffffff9c}
 .done{background:#174d60}.done-center{margin:auto;text-align:center}.done-symbol{display:inline-grid;place-items:center;width:90px;height:90px;border:5px solid var(--mint);border-radius:50%;font-size:3rem}.done h1{font-size:clamp(2.5rem,8vw,5rem);letter-spacing:-.055em;margin:24px 0 0}.done p{color:#d0eff0}.done .primary-button{max-width:420px;align-self:center;background:#fff;color:#174d60}
-@media(max-width:780px){.setup{display:block}.intro{min-height:auto;padding:26px 24px 30px}.intro::after{width:45%;left:auto;right:-8%;bottom:-40%;border-width:22px;transform:none}.intro h1{font-size:clamp(2.6rem,10vw,4rem);margin:30px 0 10px;max-width:none}.intro p{font-size:.95rem;max-width:45ch}.setup-body{padding:26px 24px 40px}.run,.done{padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom))}}
+@media(max-width:780px){.setup-body{padding:26px 24px 40px}.run,.done{padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom))}}
 @media(max-width:380px){.count-fields{gap:10px}.count-fields label{font-size:.85rem}.run-actions{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){.run{transition:none}}
 </style>
@@ -64,14 +60,8 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
 <body>
   <main class="shell">
     <form id="setup" class="setup" novalidate>
-      <header class="intro">
-        <div class="brand"><span class="brand-mark" aria-hidden="true"></span> TimerFree</div>
-        <h1>Seu treino,<br>no seu ritmo.</h1>
-        <p>Defina os tempos uma vez. O timer cuida da preparação, dos exercícios e dos descansos.</p>
-      </header>
-
       <div class="setup-body">
-        <div class="section-heading"><h2>Monte o circuito</h2><span>01 / 02</span></div>
+        <div class="section-heading"><h1>Monte o circuito</h1><span>01 / 02</span></div>
 
         <fieldset class="duration-row">
           <legend>Tempo de cada exercício</legend>
@@ -211,6 +201,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       this.phaseIndex = 0;
       this.remainingMs = phases[0].seconds * 1e3;
       this.deadlineMs = null;
+      this.lastCueSecond = null;
     }
     snapshot(nowMs) {
       return {
@@ -223,6 +214,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       if (this.status !== "idle") return { state: this.snapshot(nowMs), cue: null };
       this.status = "running";
       this.deadlineMs = nowMs + this.remainingMs;
+      this.lastCueSecond = Math.ceil(this.remainingMs / 1e3);
       return { state: this.snapshot(nowMs), cue: "phase" };
     }
     tick(nowMs) {
@@ -238,11 +230,22 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
         this.deadlineMs += this.phases[this.phaseIndex].seconds * 1e3;
         entered = true;
       }
-      return { state: this.snapshot(nowMs), cue: entered ? "phase" : null };
+      const state = this.snapshot(nowMs);
+      let cue = null;
+      if (state.status === "running") {
+        const second = Math.ceil(state.remainingMs / 1e3);
+        if (entered) cue = "phase";
+        else if (second <= 5 && second > 0 && second !== this.lastCueSecond) cue = "countdown";
+        this.lastCueSecond = second;
+      }
+      return { state, cue };
     }
     pause(nowMs) {
       if (this.status !== "running") return this.snapshot(nowMs);
+      const previousPhaseIndex = this.phaseIndex;
+      const previousCueSecond = this.lastCueSecond;
       this.tick(nowMs);
+      if (this.phaseIndex === previousPhaseIndex) this.lastCueSecond = previousCueSecond;
       if (this.status === "running") {
         this.remainingMs = Math.max(0, this.deadlineMs - nowMs);
         this.deadlineMs = null;
@@ -261,6 +264,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       this.phaseIndex = 0;
       this.remainingMs = this.phases[0].seconds * 1e3;
       this.deadlineMs = null;
+      this.lastCueSecond = null;
       return this.snapshot(0);
     }
   };
@@ -306,22 +310,22 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
       }
     }
     function playCue(kind) {
-      if (!audioReady || !context || !["phase", "complete"].includes(kind)) return false;
+      if (!audioReady || !context || !["countdown", "phase", "complete"].includes(kind)) return false;
       try {
         const now = context.currentTime;
-        const notes = kind === "complete" ? [[660, 0], [880, 0.16], [1046, 0.32]] : [[760, 0]];
-        for (const [frequency, offset] of notes) {
+        const notes = kind === "complete" ? [[660, 0, 0.24], [880, 0.3, 0.24], [1046, 0.6, 0.5]] : [[kind === "countdown" ? 520 : 760, 0, 0.14]];
+        for (const [frequency, offset, duration] of notes) {
           const oscillator = context.createOscillator();
           const gain = context.createGain();
           const start = now + offset;
           oscillator.type = "sine";
           oscillator.frequency.setValueAtTime(frequency, start);
           gain.gain.setValueAtTime(0.16, start);
-          gain.gain.exponentialRampToValueAtTime(1e-3, start + 0.13);
+          gain.gain.exponentialRampToValueAtTime(1e-3, start + duration - 0.01);
           oscillator.connect(gain);
           gain.connect(context.destination);
           oscillator.start(start);
-          oscillator.stop(start + 0.14);
+          oscillator.stop(start + duration);
         }
         return true;
       } catch {

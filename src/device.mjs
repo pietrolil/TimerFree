@@ -21,24 +21,24 @@ export function createDeviceControls({ requestWakeLock, createAudioContext, onWa
   }
 
   function playCue(kind) {
-    if (!audioReady || !context || !['phase', 'complete'].includes(kind)) return false;
+    if (!audioReady || !context || !['countdown', 'phase', 'complete'].includes(kind)) return false;
     try {
       const now = context.currentTime;
       const notes = kind === 'complete'
-        ? [[660, 0], [880, 0.16], [1046, 0.32]]
-        : [[760, 0]];
-      for (const [frequency, offset] of notes) {
+        ? [[660, 0, 0.24], [880, 0.3, 0.24], [1046, 0.6, 0.5]]
+        : [[kind === 'countdown' ? 520 : 760, 0, 0.14]];
+      for (const [frequency, offset, duration] of notes) {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         const start = now + offset;
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(frequency, start);
         gain.gain.setValueAtTime(0.16, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.13);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration - 0.01);
         oscillator.connect(gain);
         gain.connect(context.destination);
         oscillator.start(start);
-        oscillator.stop(start + 0.14);
+        oscillator.stop(start + duration);
       }
       return true;
     } catch {

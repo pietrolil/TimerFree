@@ -16,8 +16,18 @@ A transição e o descanso podem ser zero.
    espera você tocar em **Continuar**.
 4. Use **Pausar** ou **Encerrar** quando precisar.
 
-O site tenta manter a tela acesa durante a contagem e emitir um som em cada
-mudança de fase e ao concluir. Se o navegador não permitir som ou tela acesa,
+O site tenta manter a tela acesa durante a contagem. Os sons acompanham o treino:
+
+- Um bipe por segundo em **5, 4, 3, 2 e 1** no final de cada exercício,
+  transição (descanso entre exercícios) e descanso entre sets.
+- Bipes em **3, 2 e 1** na preparação de cada set, inclusive no início do circuito.
+- Um som de mudança de fase, que também cobre o primeiro segundo das fases
+  com até 5 segundos, sem duplicar o bipe.
+- Um alarme de três notas mais longas ao concluir todos os sets.
+
+Os bipes param durante a pausa. Ao continuar, a contagem segue sem repetir os
+avisos anteriores; atrasos do navegador não disparam vários bipes acumulados.
+Se o navegador não permitir som ou tela acesa,
 o contador visual continua funcionando e mostra um aviso. O volume e o modo
 silencioso do aparelho podem afetar os sons. As últimas configurações ficam
 salvas somente no navegador; o treino em andamento não é recuperado após
