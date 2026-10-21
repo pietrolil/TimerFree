@@ -134,3 +134,32 @@ test('countdown emits a short beep and completion emits a distinct longer alarm'
   assert.ok(notes.at(-1).stop - notes[0].start >= 1);
   assert.equal(device.playCue('unknown'), false);
 });
+
+test('unlock selects media playback before opening audio so iPhone silent mode does not mute cues', async () => {
+  const audioSession = { type: 'auto' };
+  let starts = 0;
+  const device = createDeviceControls({
+    audioSession,
+    requestWakeLock: null,
+    createAudioContext: () => {
+      if (audioSession.type !== 'playback') throw Error('Ambient audio is muted by the silent switch');
+      return {
+        state: 'running', currentTime: 0, destination: {}, resume: async () => {},
+        createOscillator: () => ({ frequency: { setValueAtTime: () => {} }, connect: () => {}, start: () => { starts++; }, stop: () => {} }),
+        createGain: () => ({ gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => {} })
+      };
+    }
+  });
+  assert.equal(await device.unlockAudio(), true);
+  assert.equal(device.playCue('countdown'), true);
+  assert.equal(starts, 1);
+});
+
+test('a browser rejecting the optional playback category can still unlock audio', async () => {
+  const device = createDeviceControls({
+    audioSession: { set type(_type) { throw Error('Unsupported audio session type'); } },
+    requestWakeLock: null,
+    createAudioContext: () => ({ state: 'running', resume: async () => {} })
+  });
+  assert.equal(await device.unlockAudio(), true);
+});

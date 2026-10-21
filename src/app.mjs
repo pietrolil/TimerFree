@@ -93,6 +93,7 @@ let storage;
 try { storage = window.localStorage; } catch { storage = null; }
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 const device = createDeviceControls({
+  audioSession: navigator.audioSession,
   requestWakeLock: navigator.wakeLock?.request ? () => navigator.wakeLock.request('screen') : null,
   createAudioContext: AudioContextClass ? () => new AudioContextClass() : null,
   onWakeRelease: () => {

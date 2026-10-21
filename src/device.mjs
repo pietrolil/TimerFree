@@ -1,4 +1,4 @@
-export function createDeviceControls({ requestWakeLock, createAudioContext, onWakeRelease }) {
+export function createDeviceControls({ requestWakeLock, createAudioContext, audioSession, onWakeRelease }) {
   let context = null;
   let audioReady = false;
   let sentinel = null;
@@ -7,6 +7,10 @@ export function createDeviceControls({ requestWakeLock, createAudioContext, onWa
 
   async function unlockAudio() {
     if (!createAudioContext) return false;
+    // iOS treats default Web Audio as ambient (muted by the silent switch).
+    // Select media playback within the tap, before constructing/resuming audio.
+    try { if (audioSession) audioSession.type = 'playback'; }
+    catch { /* Older browsers can still play with silent mode disabled. */ }
     try {
       // Construct and resume before the first await so Safari sees the tap gesture.
       context ??= createAudioContext();

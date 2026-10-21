@@ -290,7 +290,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
   }
 
   // src/device.mjs
-  function createDeviceControls({ requestWakeLock, createAudioContext, onWakeRelease }) {
+  function createDeviceControls({ requestWakeLock, createAudioContext, audioSession, onWakeRelease }) {
     let context = null;
     let audioReady = false;
     let sentinel = null;
@@ -298,6 +298,10 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     let wakeGeneration = 0;
     async function unlockAudio() {
       if (!createAudioContext) return false;
+      try {
+        if (audioSession) audioSession.type = "playback";
+      } catch {
+      }
       try {
         context ??= createAudioContext();
         const resumed = context.resume();
@@ -466,6 +470,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
   }
   var AudioContextClass = window.AudioContext || window.webkitAudioContext;
   var device = createDeviceControls({
+    audioSession: navigator.audioSession,
     requestWakeLock: navigator.wakeLock?.request ? () => navigator.wakeLock.request("screen") : null,
     createAudioContext: AudioContextClass ? () => new AudioContextClass() : null,
     onWakeRelease: () => {
