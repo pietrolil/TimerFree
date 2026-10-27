@@ -28,10 +28,10 @@ O site tenta manter a tela acesa durante a contagem. Os sons acompanham o treino
 Os bipes param durante a pausa. Ao continuar, a contagem segue sem repetir os
 avisos anteriores; atrasos do navegador não disparam vários bipes acumulados.
 Se o navegador não permitir som ou tela acesa,
-o contador visual continua funcionando e mostra um aviso. No Safari com suporte
-à Audio Session API, os alertas usam reprodução de mídia para tocar também no
-modo silencioso. Ajuste o **volume de mídia** do iPhone. Em navegadores sem esse
-suporte, pode ser necessário desativar o modo silencioso para ouvir os bipes.
+o contador visual continua funcionando e mostra um aviso. Os alertas são
+configurados para tocar junto com a música de outros apps, sem solicitar áudio
+exclusivo. No Safari do iPhone, **desative o modo silencioso** para ouvir os bipes
+junto com a música e ajuste o **volume de mídia**. Não há opções de som na tela.
 As últimas configurações ficam
 salvas somente no navegador; o treino em andamento não é recuperado após
 recarregar a página.

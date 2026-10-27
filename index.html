@@ -299,7 +299,7 @@ input[aria-invalid="true"]{border-color:#c45026;background:#fff7f2}
     async function unlockAudio() {
       if (!createAudioContext) return false;
       try {
-        if (audioSession) audioSession.type = "playback";
+        if (audioSession) audioSession.type = "ambient";
       } catch {
       }
       try {

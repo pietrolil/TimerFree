@@ -135,14 +135,22 @@ test('countdown emits a short beep and completion emits a distinct longer alarm'
   assert.equal(device.playCue('unknown'), false);
 });
 
-test('unlock selects media playback before opening audio so iPhone silent mode does not mute cues', async () => {
-  const audioSession = { type: 'auto' };
+test('unlock keeps other-app music playing by selecting a mixable session before opening audio', async () => {
+  let sessionType = 'auto';
+  let musicPlaying = true;
+  const audioSession = {
+    get type() { return sessionType; },
+    set type(value) {
+      sessionType = value;
+      if (value === 'playback') musicPlaying = false;
+    }
+  };
   let starts = 0;
   const device = createDeviceControls({
     audioSession,
     requestWakeLock: null,
     createAudioContext: () => {
-      if (audioSession.type !== 'playback') throw Error('Ambient audio is muted by the silent switch');
+      if (audioSession.type !== 'ambient') throw Error('Audio must allow background music before opening context');
       return {
         state: 'running', currentTime: 0, destination: {}, resume: async () => {},
         createOscillator: () => ({ frequency: { setValueAtTime: () => {} }, connect: () => {}, start: () => { starts++; }, stop: () => {} }),
@@ -153,9 +161,14 @@ test('unlock selects media playback before opening audio so iPhone silent mode d
   assert.equal(await device.unlockAudio(), true);
   assert.equal(device.playCue('countdown'), true);
   assert.equal(starts, 1);
+  assert.equal(musicPlaying, true);
+  sessionType = 'auto';
+  assert.equal(await device.unlockAudio(), true);
+  assert.equal(sessionType, 'ambient');
+  assert.equal(musicPlaying, true);
 });
 
-test('a browser rejecting the optional playback category can still unlock audio', async () => {
+test('a browser rejecting the optional mixable category can still unlock audio', async () => {
   const device = createDeviceControls({
     audioSession: { set type(_type) { throw Error('Unsupported audio session type'); } },
     requestWakeLock: null,
